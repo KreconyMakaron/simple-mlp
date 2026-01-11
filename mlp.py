@@ -1,20 +1,32 @@
 import numpy as np
 
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
+
 
 def sigmoid_gradient(x):
     s = sigmoid(x)
     return s * (1 - s)
 
+
 def relu(x):
     return np.maximum(0, x)
+
 
 def relu_gradient(x):
     return (x > 0).astype(float)
 
+
+def loss(Y_pred, Y):
+    eps = 1e-12
+    p = np.clip(Y_pred, eps, 1 - eps)
+    return -np.mean(Y * np.log(p) + (1 - Y) * np.log(1 - p))
+
+
 class MLP:
-    def __init__(self, input_dim, layers=(2, 1), lr = 1e-3, epochs = 500, batch_size = 32, momentum = 0.9, l2 = 0.0, seed = 42, verbose=True):
+    def __init__(self, input_dim, layers=(2, 1), lr=1e-3, epochs=500, batch_size=32, momentum=0.9, l2=0.0, seed=42,
+                 verbose=True):
         np.random.seed(seed)
 
         self.lr = lr
@@ -32,13 +44,13 @@ class MLP:
         self.W_vel = []
         self.b_vel = []
         for l in range(self.L):
-            n_in, n_out = self.sizes[l], self.sizes[l+1]
+            n_in, n_out = self.sizes[l], self.sizes[l + 1]
 
             # He for Relu, Xavier for Sigmoid
             mult = 2 if l < self.L - 1 else 1
 
             self.W.append(np.random.randn(n_in, n_out) * np.sqrt(mult / n_in))
-            self.b.append(np.zeros(n_out,))
+            self.b.append(np.zeros(n_out, ))
             self.W_vel.append(np.zeros_like(self.W[l]))
             self.b_vel.append(np.zeros_like(self.b[l]))
 
@@ -65,7 +77,7 @@ class MLP:
             grad_W[l] = a[l].T @ delta / m + self.l2 * self.W[l]
             grad_b[l] = np.mean(delta, axis=0)
             if l > 0:
-                delta = (delta @ self.W[l].T) * relu_gradient(z[l-1])
+                delta = (delta @ self.W[l].T) * relu_gradient(z[l - 1])
         return grad_W, grad_b
 
     def apply_gradient(self, grad_W, grad_b):
@@ -74,11 +86,6 @@ class MLP:
             self.b_vel[l] = self.momentum * self.b_vel[l] - self.lr * grad_b[l]
             self.W[l] += self.W_vel[l]
             self.b[l] += self.b_vel[l]
-
-    def loss(self, Y_pred, Y):
-        eps = 1e-12
-        p = np.clip(Y_pred, eps, 1 - eps)
-        return -np.mean(Y * np.log(p) + (1 - Y) * np.log(1 - p))
 
     def fit(self, X, Y, X_val=None, Y_val=None, shuffle=True):
         m = Y.shape[0]
@@ -98,13 +105,13 @@ class MLP:
 
             # diagnostics
             a_all, _ = self.forward(X)
-            train_loss = self.loss(a_all[-1], Y)
+            train_loss = loss(a_all[-1], Y)
             train_acc = np.mean((a_all[-1] > 0.5).astype(int) == Y)
 
             val_loss, val_acc = None, None
             if X_val is not None and Y_val is not None:
                 av, _ = self.forward(X_val)
-                val_loss = self.loss(av[-1], Y_val)
+                val_loss = loss(av[-1], Y_val)
                 val_acc = np.mean((av[-1] > 0.5).astype(int) == Y_val)
 
             self.history['loss'].append(train_loss)
